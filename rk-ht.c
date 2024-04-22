@@ -203,7 +203,7 @@ void rk_ht_destroy(rk_ht_t *ht)
     free(ht);
 }
 
-int rk_ht_insert(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
+int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
 {
     /* allows inserting NULL value */
     if (!ht || !key || !key_len) return -1;
@@ -242,7 +242,7 @@ int rk_ht_insert(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     return 1;
 }
 
-int rk_ht_erase(rk_ht_t *ht, char *key, unsigned int key_len)
+int rk_ht_erase_s(rk_ht_t *ht, char *key, unsigned int key_len)
 {
     if (!ht || !key || !key_len) return -1;
 
@@ -290,7 +290,7 @@ int rk_ht_clear(rk_ht_t *ht)
     return 0;
 }
 
-void *rk_ht_find(rk_ht_t *ht, char *key, unsigned int key_len)
+void *rk_ht_find_s(rk_ht_t *ht, char *key, unsigned int key_len)
 {
     if (!ht || !key || !key_len) return NULL;
 

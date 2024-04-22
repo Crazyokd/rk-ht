@@ -11,24 +11,24 @@ int main()
     int c = 28;
     int res = 0;
 
-    res = rk_ht_insert(ht, &a, sizeof(a), 4);
-    res = rk_ht_insert(ht, &b, sizeof(b), 8);
-    res = rk_ht_insert(ht, &c, sizeof(c), 28);
-    res = rk_ht_find(ht, &a, sizeof(a));
+    res = rk_ht_insert(ht, &a, 4);
+    res = rk_ht_insert(ht, &b, 8);
+    res = rk_ht_insert(ht, &c, 28);
+    res = rk_ht_find(ht, &a);
     printf("%d\n", res);
-    res = rk_ht_find(ht, &b, sizeof(b));
+    res = rk_ht_find(ht, &b);
     printf("%d\n", res);
-    res = rk_ht_find(ht, &c, sizeof(c));
+    res = rk_ht_find(ht, &c);
     printf("%d\n", res);
-    rk_ht_erase(ht, &a, sizeof(a));
-    res = rk_ht_find(ht, &a, sizeof(a));
+    rk_ht_erase(ht, &a);
+    res = rk_ht_find(ht, &a);
     printf("%d\n", res);
-    res = rk_ht_find(ht, &b, sizeof(b));
+    res = rk_ht_find(ht, &b);
     printf("%d\n", res);
     rk_ht_clear(ht);
-    res = rk_ht_find(ht, &b, sizeof(b));
+    res = rk_ht_find(ht, &b);
     printf("%d\n", res);
-    res = rk_ht_find(ht, &c, sizeof(c));
+    res = rk_ht_find(ht, &c);
     printf("%d\n", res);
 
     rk_ht_destroy(ht);

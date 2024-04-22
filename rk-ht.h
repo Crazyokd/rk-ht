@@ -44,9 +44,14 @@ typedef struct rk_ht_s {
 rk_ht_t *rk_ht_create(unsigned int its, unsigned int mts, unsigned int max_size,
                       rk_hs_func hs_func);
 void rk_ht_destroy(rk_ht_t *table);
-int rk_ht_insert(rk_ht_t *table, char *key, unsigned int key_len, void *value);
-int rk_ht_erase(rk_ht_t *table, char *key, unsigned int key_len);
-void *rk_ht_find(rk_ht_t *table, char *key, unsigned int key_len);
+int rk_ht_insert_s(rk_ht_t *table, char *key, unsigned int key_len,
+                   void *value);
+#define rk_ht_insert(table, key, value) \
+    rk_ht_insert_s(table, (char *)key, sizeof(*key), (void *)value)
+int rk_ht_erase_s(rk_ht_t *table, char *key, unsigned int key_len);
+#define rk_ht_erase(table, key) rk_ht_erase_s(table, (char *)key, sizeof(*key))
+void *rk_ht_find_s(rk_ht_t *table, char *key, unsigned int key_len);
+#define rk_ht_find(table, key) rk_ht_find_s(table, (char *)key, sizeof(*key))
 int rk_ht_clear(rk_ht_t *table);
 
 #endif
