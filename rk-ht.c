@@ -306,3 +306,26 @@ void *rk_ht_find_s(rk_ht_t *ht, char *key, unsigned int key_len)
     }
     return NULL;
 }
+
+rk_node_t **rk_ht_create_iter(rk_ht_t *ht)
+{
+    if (!ht) return NULL;
+
+    rk_node_t **nodes = malloc(sizeof(rk_node_t *) * ht->size);
+    if (!nodes) return NULL;
+    int idx = 0;
+    for (unsigned int i = 0; i < ht->cts; i++) {
+        rk_node_t *node = (ht->table + i)->next;
+        while (node) {
+            nodes[idx++] = node;
+            node = node->next;
+        }
+    }
+    return nodes;
+}
+
+inline void rk_ht_free_iter(rk_node_t **nodes)
+{
+    if (!nodes) return;
+    free(nodes);
+}

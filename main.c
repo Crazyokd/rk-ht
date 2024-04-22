@@ -20,6 +20,15 @@ int main()
     printf("%d\n", res);
     res = rk_ht_find(ht, &c);
     printf("%d\n", res);
+
+    printf("start iter\n");
+    rk_node_t **iter = rk_ht_create_iter(ht);
+    for (int i = 0; i < ht->size; i++) {
+        printf("%d\n", iter[i]->data);
+    }
+    rk_ht_free_iter(iter);
+    printf("finish iter\n");
+
     rk_ht_erase(ht, &a);
     res = rk_ht_find(ht, &a);
     printf("%d\n", res);

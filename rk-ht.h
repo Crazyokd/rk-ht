@@ -53,5 +53,14 @@ int rk_ht_erase_s(rk_ht_t *table, char *key, unsigned int key_len);
 void *rk_ht_find_s(rk_ht_t *table, char *key, unsigned int key_len);
 #define rk_ht_find(table, key) rk_ht_find_s(table, (char *)key, sizeof(*key))
 int rk_ht_clear(rk_ht_t *table);
+/**
+ * create an iterator
+ * please free the return value with rk_ht_free_iter
+ * 
+ * @param table
+ * @return a pointer to an iterator
+*/
+rk_node_t **rk_ht_create_iter(rk_ht_t *table);
+void rk_ht_free_iter(rk_node_t **iter);
 
 #endif
