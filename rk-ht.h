@@ -32,6 +32,7 @@ typedef struct rk_ht_s {
     rk_table_t *table;
     unsigned int mts; /* max table size */
     unsigned int cts; /* current table size */
+    unsigned int mask; /* the mask of current table size */
 
     unsigned int size; /* number of nodes currently in use */
     unsigned int max_size; /* the number of nodes that can be allocated */

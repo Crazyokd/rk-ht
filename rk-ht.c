@@ -186,6 +186,7 @@ rk_ht_t *rk_ht_create(unsigned int its, unsigned int mts, unsigned int max_size,
     ht->free_nodes[max_size - 1].next = NULL;
 
     ht->cts = its;
+    ht->mask = ht->cts - 1;
     ht->mts = mts;
     ht->hs_func = hs_func;
     ht->size = 0;
@@ -208,7 +209,7 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     /* allows inserting NULL value */
     if (!ht || !key || !key_len) return -1;
 
-    int idx = ht->hs_func(key, key_len) % ht->cts;
+    int idx = ht->hs_func(key, key_len) & ht->mask;
     rk_table_t *table = ht->table + idx;
 
     /* do not support multi map */
@@ -246,7 +247,7 @@ int rk_ht_erase_s(rk_ht_t *ht, char *key, unsigned int key_len)
 {
     if (!ht || !key || !key_len) return -1;
 
-    int idx = ht->hs_func(key, key_len) % ht->cts;
+    int idx = ht->hs_func(key, key_len) & ht->mask;
     rk_table_t *table = &ht->table[idx];
 
     rk_node_t *t_t = table->next;
@@ -294,7 +295,7 @@ void *rk_ht_find_s(rk_ht_t *ht, char *key, unsigned int key_len)
 {
     if (!ht || !key || !key_len) return NULL;
 
-    int idx = ht->hs_func(key, key_len) % ht->cts;
+    int idx = ht->hs_func(key, key_len) & ht->mask;
     rk_table_t *table = ht->table + idx;
 
     rk_node_t *t_t = table->next;
