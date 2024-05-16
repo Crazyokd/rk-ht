@@ -154,43 +154,42 @@ unsigned int SDBMHash(char *str, unsigned int len)
 }
 /* End Of SDBM Hash Function */
 
-rk_ht_t *rk_ht_create(unsigned int its, unsigned int mts, unsigned int max_size,
-                      rk_hs_func hs_func)
+rk_ht_t *rk_ht_create(unsigned int table_size, rk_hs_func hs_func)
 {
     /* the initial size must be greater than 1 */
-    if (mts < its || its < 2) return NULL;
+    while (table_size % 2) {
+        table_size++;
+    }
 
     rk_ht_t *ht = malloc(sizeof(rk_ht_t));
     if (!ht) {
         return NULL;
     }
     /* allocate free nodes */
-    ht->free = malloc(sizeof(rk_node_t) * max_size);
+    ht->free = malloc(sizeof(rk_node_t) * table_size);
     if (!ht->free) {
         free(ht);
         return NULL;
     }
     /* alloc and initialize table */
-    ht->table = calloc(its, sizeof(rk_table_t));
+    ht->table = calloc(table_size, sizeof(rk_table_t));
     if (!ht->table) {
         free(ht->free);
         free(ht);
         return NULL;
     }
 
+    ht->mask = table_size - 1;
     ht->free_nodes = ht->free;
     /* initialize free nodes */
-    for (unsigned int i = 0; i < max_size - 1; i++) {
+    for (unsigned int i = 0; i < ht->mask; i++) {
         ht->free_nodes[i].next = ht->free_nodes + (i + 1);
     }
-    ht->free_nodes[max_size - 1].next = NULL;
+    ht->free_nodes[ht->mask].next = NULL;
 
-    ht->cts = its;
-    ht->mask = ht->cts - 1;
-    ht->mts = mts;
     ht->hs_func = hs_func;
     ht->size = 0;
-    ht->max_size = max_size;
+    ht->table_size = table_size;
 
     return ht;
 }
@@ -282,7 +281,7 @@ int rk_ht_clear(rk_ht_t *ht)
     /* we can choose two strategy to clear */
     /* 1. find all allocated nodes and add to free list */
     /* 2. erase table and restore free list */
-    for (unsigned int i = 0; i < ht->cts; i++) {
+    for (unsigned int i = 0; i < ht->table_size; i++) {
         rk_table_t *table = ht->table + i;
         if (table->prev) {
             table->prev->next = ht->free_nodes;
@@ -318,7 +317,7 @@ rk_node_t **rk_ht_create_iter(rk_ht_t *ht)
     rk_node_t **nodes = malloc(sizeof(rk_node_t *) * ht->size);
     if (!nodes) return NULL;
     int idx = 0;
-    for (unsigned int i = 0; i < ht->cts; i++) {
+    for (unsigned int i = 0; i < ht->table_size; i++) {
         rk_node_t *node = (ht->table + i)->next;
         while (node) {
             nodes[idx++] = node;

@@ -4,7 +4,7 @@
 
 int main()
 {
-    rk_ht_t *ht = rk_ht_create(8, 8, 1024, BPHash);
+    rk_ht_t *ht = rk_ht_create(8, BPHash);
 
     int a = 4;
     int b = 8;
