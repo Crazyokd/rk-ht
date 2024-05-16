@@ -208,7 +208,8 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     /* allows inserting NULL value */
     if (!ht || !key || !key_len) return -1;
 
-    int idx = ht->hs_func(key, key_len) & ht->mask;
+    int hash = ht->hs_func(key, key_len); /* preserve hash value */
+    int idx = hash & ht->mask;
     rk_table_t *table = ht->table + idx;
 
     /* do not support multi map */
@@ -234,6 +235,7 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     node->key = key;
     node->key_len = key_len;
     node->data = value;
+    node->hash = hash;
 
     ht->size++;
     return 1;
@@ -331,4 +333,71 @@ inline void rk_ht_free_iter(rk_node_t **nodes)
 {
     if (!nodes) return;
     free(nodes);
+}
+
+static int rk_ht_expand(rk_ht_t *ht, unsigned int new_size)
+{
+    while (new_size % 2) {
+        new_size++;
+    }
+    if (new_size <= ht->table_size) {
+        /**
+         * if new size is less than current size, we do not resize as it will discard element
+         * if new size is less than table size, we do not resize as the costs is too high
+         */
+        return -1;
+    }
+
+    /* now we start to expand the hashtable */
+    rk_node_t *new_free = malloc(sizeof(rk_node_t) * new_size);
+    if (!new_free) {
+        return -1;
+    }
+    rk_table_t *new_table = calloc(new_size, sizeof(rk_table_t));
+    if (!new_table) {
+        free(new_free);
+        return -1;
+    }
+    memcpy(new_free, ht->free, sizeof(rk_node_t) * ht->table_size);
+
+    ht->mask = new_size - 1;
+    if (new_free != ht->free && ht->free_nodes) {
+        /* Unluckily! the base address has been changed. */
+        rk_node_t *old_node = ht->free_nodes;
+        rk_node_t *new_node = new_free + (old_node - ht->free);
+        while (old_node->next) {
+            old_node = old_node->next;
+            /* we just need update the [next] member */
+            new_node->next = new_free + (old_node - ht->free);
+            new_node = new_node->next;
+        }
+        new_node->next = NULL;
+    }
+    /* add new allocated nodes to free_nodes */
+    for (unsigned int i = ht->table_size; i < ht->mask; i++) {
+        new_free[i].next = new_free + i + 1;
+    }
+    new_free[ht->mask].next = new_free + (ht->free_nodes - ht->free);
+    ht->free_nodes = new_free + ht->table_size;
+    /* now we start to rehash */
+    for (unsigned int i = 0; i < ht->table_size; i++) {
+        rk_node_t *node = (ht->table + i)->next;
+        while (node) {
+            rk_table_t *table = new_table + (node->hash & ht->mask);
+            rk_node_t *new_node = new_free + (node - ht->free);
+            if (!table->prev) {
+                table->prev = new_node; // first element inserted
+            }
+            new_node->next = table->next;
+            table->next = new_node;
+
+            node = node->next;
+        }
+    }
+    free(ht->table);
+    free(ht->free);
+    ht->free = new_free;
+    ht->table = new_table;
+    ht->table_size = new_size;
+    return 0;
 }

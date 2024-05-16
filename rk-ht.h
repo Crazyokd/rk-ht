@@ -20,6 +20,7 @@ typedef struct rk_node_s {
     void *data; /* point to user data */
     char *key;
     unsigned int key_len;
+    unsigned int hash; /* for cache hash value */
 } rk_node_t;
 
 typedef struct rk_table_s {
