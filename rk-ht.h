@@ -16,7 +16,6 @@ unsigned int SDBMHash(char *str, unsigned int len);
 /* end hash algorithm */
 
 typedef struct rk_node_s {
-    struct rk_node_s *prev;
     struct rk_node_s *next;
     void *data; /* point to user data */
     char *key;
@@ -24,8 +23,8 @@ typedef struct rk_node_s {
 } rk_node_t;
 
 typedef struct rk_table_s {
-    rk_node_t *prev;
     rk_node_t *next;
+    rk_node_t *prev;
 } rk_table_t;
 
 typedef struct rk_ht_s {

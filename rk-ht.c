@@ -227,12 +227,9 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     rk_node_t *node = ht->free_nodes;
     ht->free_nodes = node->next;
 
-    if (table->next)
-        table->next->prev = node;
-    else
+    if (!table->next)
         table->prev = node; // no any element in table
     node->next = table->next;
-    node->prev = NULL;
     table->next = node;
     /* fill value */
     node->key = key;
@@ -250,23 +247,29 @@ int rk_ht_erase_s(rk_ht_t *ht, char *key, unsigned int key_len)
     int idx = ht->hs_func(key, key_len) & ht->mask;
     rk_table_t *table = &ht->table[idx];
 
+    /* The [next] member of table and node all are first position */
+    rk_node_t *prev_node = (rk_node_t *)table;
     rk_node_t *t_t = table->next;
     while (t_t) {
         if (t_t->key_len == key_len && !memcmp(t_t->key, key, key_len)) {
-            if (t_t->next)
-                t_t->next->prev = t_t->prev;
-            else
-                table->prev = t_t->prev;
-            if (t_t->prev)
-                t_t->prev->next = t_t->next;
-            else
-                table->next = t_t->next;
+            /* last node of link */
+            if (!t_t->next) {
+                if (prev_node == table) {
+                    /* no any element now */
+                    table->prev = NULL;
+                } else {
+                    table->prev = prev_node;
+                }
+            }
+            prev_node->next = t_t->next;
+
             /* add to free list */
             t_t->next = ht->free_nodes;
             ht->free_nodes = t_t;
             ht->size--;
             return 1;
         }
+        prev_node = t_t;
         t_t = t_t->next;
     }
     return 0;
