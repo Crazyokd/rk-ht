@@ -22,12 +22,14 @@ int main()
     res = rk_ht_insert_s(ht, "ccccc", 5, 3);
     res = rk_ht_insert_s(ht, "ddddd", 5, 4);
     res = rk_ht_insert_s(ht, "eeeee", 5, 5);
-    res = rk_ht_insert_s(ht, "fffff21341234", 5, 6);
+    res = rk_ht_insert_s(ht, "fffff21341234", 13, 6);
     res = rk_ht_find(ht, &a);
     printf("%d\n", res);
     res = rk_ht_find(ht, &b);
     printf("%d\n", res);
     res = rk_ht_find(ht, &c);
+    printf("%d\n", res);
+    res = rk_ht_find_s(ht, "fffff21341234", 13);
     printf("%d\n", res);
 
     printf("start iter\n");

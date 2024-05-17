@@ -155,6 +155,16 @@ unsigned int SDBMHash(char *str, unsigned int len)
 /* End Of SDBM Hash Function */
 
 #define RK_NODE_OFFSET(bp, p) ((rk_node_t *)p - (rk_node_t *)bp)
+#define FREE_KEYS_OF_TABLE(table)                \
+do {                                             \
+    rk_node_t *node = table->next;               \
+    while (node) {                               \
+        if (node->key_len > sizeof(node->key)) { \
+            free(node->key);                     \
+        }                                        \
+        node = node->next;                       \
+    }                                            \
+} while(0);
 
 rk_ht_t *rk_ht_create(unsigned int table_size, rk_hs_func hs_func)
 {
@@ -199,6 +209,10 @@ rk_ht_t *rk_ht_create(unsigned int table_size, rk_hs_func hs_func)
 void rk_ht_destroy(rk_ht_t *ht)
 {
     if (!ht) return;
+    /* free all keys that may need to be free */
+    for (unsigned int i = 0; i < ht->table_size; i++) {
+        FREE_KEYS_OF_TABLE((ht->table + i));
+    }
     free(ht->table);
     /* free all allocated nodes */
     free(ht->free);
@@ -284,6 +298,22 @@ static int rk_ht_expand(rk_ht_t *ht, unsigned int new_size)
     return 0;
 }
 
+/**
+ * @brief determine if two keys are the same
+ * 
+ * @param key1 
+ * @param key1_len 
+ * @param key2 
+ * @param key2_len 
+ * @return 1 if same, 0 if not
+ */
+static inline int is_same_key(char *key1, char *key1_len, char *key2, char *key2_len)
+{
+    return (key1_len == key2_len &&
+        ((key1_len <= sizeof(char *) && !memcmp(&key1, key2, key1_len)) ||
+        (key1_len > sizeof(char *) && !memcmp(key1, key2, key1_len))));
+}
+
 int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
 {
     /* allows inserting NULL value */
@@ -296,7 +326,7 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     rk_node_t *t_t = table->next;
     while (t_t) {
         /* already exist */
-        if (t_t->key_len == key_len && !memcmp(t_t->key, key, key_len))
+        if (is_same_key(t_t->key, t_t->key_len, key, key_len))
             return 0;
         t_t = t_t->next;
     }
@@ -320,7 +350,13 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     node->next = table->next;
     table->next = node;
     /* fill value */
-    node->key = key;
+    if (key_len > sizeof(node->key)) {
+        /* copy key as original key maybe modified or destroyed */
+        node->key = malloc(key_len);
+        memcpy(node->key, key, key_len);
+    } else {
+        memcpy(&node->key, key, key_len);
+    }
     node->key_len = key_len;
     node->data = value;
     node->hash = hash;
@@ -340,7 +376,10 @@ int rk_ht_erase_s(rk_ht_t *ht, char *key, unsigned int key_len)
     rk_node_t *prev_node = (rk_node_t *)table;
     rk_node_t *t_t = table->next;
     while (t_t) {
-        if (t_t->key_len == key_len && !memcmp(t_t->key, key, key_len)) {
+        if (is_same_key(t_t->key, t_t->key_len, key, key_len)) {
+            if (t_t->key_len > sizeof(t_t->key)) {
+                free(t_t->key);
+            }
             /* last node of link */
             if (!t_t->next) {
                 if (prev_node == (rk_node_t *)table) {
@@ -374,6 +413,8 @@ int rk_ht_clear(rk_ht_t *ht)
     for (unsigned int i = 0; i < ht->table_size; i++) {
         rk_table_t *table = ht->table + i;
         if (table->prev) {
+            /* free all keys that may need to be free */
+            FREE_KEYS_OF_TABLE(table);
             table->prev->next = ht->free_nodes;
             ht->free_nodes = table->next;
             table->prev = table->next = NULL;
@@ -392,7 +433,7 @@ void *rk_ht_find_s(rk_ht_t *ht, char *key, unsigned int key_len)
 
     rk_node_t *t_t = table->next;
     while (t_t) {
-        if (t_t->key_len == key_len && !memcmp(t_t->key, key, key_len)) {
+        if (is_same_key(t_t->key, t_t->key_len, key, key_len)) {
             return t_t->data;
         }
         t_t = t_t->next;
