@@ -154,6 +154,8 @@ unsigned int SDBMHash(char *str, unsigned int len)
 }
 /* End Of SDBM Hash Function */
 
+#define RK_NODE_OFFSET(bp, p) ((rk_node_t *)p - (rk_node_t *)bp)
+
 rk_ht_t *rk_ht_create(unsigned int table_size, rk_hs_func hs_func)
 {
     /* the initial size must be greater than 1 */
@@ -203,14 +205,85 @@ void rk_ht_destroy(rk_ht_t *ht)
     free(ht);
 }
 
+/**
+ * @brief expand the hashtable
+ * 
+ * @param ht 
+ * @param new_size 
+ * @return 0 if success, -1 if fail
+ */
+static int rk_ht_expand(rk_ht_t *ht, unsigned int new_size)
+{
+    while (new_size % 2) {
+        new_size++;
+    }
+    if (new_size <= ht->table_size) {
+        /**
+         * if new size is less than current size, we do not resize as it will discard element
+         * if new size is less than table size, we do not resize as the costs is too high
+         */
+        return -1;
+    }
+
+    /* now we start to expand the hashtable */
+    rk_table_t *new_table = calloc(new_size, sizeof(rk_table_t));
+    if (!new_table) {
+        return -1;
+    }
+    rk_node_t *old_free = ht->free; // perserve old free address
+    /* note: the realloc will free old pointer if success */
+    ht->free = realloc(ht->free, sizeof(rk_node_t) * new_size);
+    if (!ht->free) {
+        ht->free = old_free; // request fail and restore
+        free(new_table);
+        return -1;
+    }
+
+    ht->mask = new_size - 1;
+    if (old_free != ht->free) {
+        /* Unluckily we need update the [next] member */
+        for (unsigned int i = 0; i < ht->table_size; i++) {
+            if (ht->free[i].next) {
+                ht->free[i].next = ht->free + RK_NODE_OFFSET(old_free, ht->free[i].next);
+            }
+        }
+    }
+
+    /* add new allocated nodes to free_nodes */
+    for (unsigned int i = ht->table_size; i < ht->mask; i++) {
+        ht->free[i].next = ht->free + i + 1;
+    }
+    ht->free[ht->mask].next = ht->free + RK_NODE_OFFSET(old_free, ht->free_nodes);
+    ht->free_nodes = ht->free + ht->table_size;
+    /* now we start to rehash */
+    for (unsigned int i = 0; i < ht->table_size; i++) {
+        rk_node_t *node = ht->free + RK_NODE_OFFSET(old_free, ht->table[i].next);
+        rk_node_t *next;
+        while (node) {
+            rk_table_t *table = new_table + (node->hash & ht->mask);
+            if (!table->prev) {
+                table->prev = node;
+            }
+            next = node->next;
+            node->next = table->next;
+            table->next = node;
+
+            node = next;
+        }
+    }
+    free(ht->table);
+    ht->table = new_table;
+    ht->table_size = new_size;
+    return 0;
+}
+
 int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
 {
     /* allows inserting NULL value */
     if (!ht || !key || !key_len) return -1;
 
     int hash = ht->hs_func(key, key_len); /* preserve hash value */
-    int idx = hash & ht->mask;
-    rk_table_t *table = ht->table + idx;
+    rk_table_t *table = ht->table + (hash & ht->mask);
 
     /* do not support multi map */
     rk_node_t *t_t = table->next;
@@ -221,13 +294,20 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     }
 
     /* no free nodes */
-    if (!ht->free_nodes) return -1;
+    if (!ht->free_nodes) {
+        if (rk_ht_expand(ht, ht->table_size << 1)) {
+            return -1;
+        } else {
+            /* expand success */
+            table = ht->table + (hash & ht->mask);
+        }
+    }
 
-    /* now add value to table[idx] */
+    /* now add value to table */
     rk_node_t *node = ht->free_nodes;
     ht->free_nodes = node->next;
 
-    if (!table->next)
+    if (!table->prev)
         table->prev = node; // no any element in table
     node->next = table->next;
     table->next = node;
@@ -335,69 +415,3 @@ inline void rk_ht_free_iter(rk_node_t **nodes)
     free(nodes);
 }
 
-#define RK_NODE_OFFSET(bp, p) ((rk_node_t *)p - (rk_node_t *)bp)
-
-static int rk_ht_expand(rk_ht_t *ht, unsigned int new_size)
-{
-    while (new_size % 2) {
-        new_size++;
-    }
-    if (new_size <= ht->table_size) {
-        /**
-         * if new size is less than current size, we do not resize as it will discard element
-         * if new size is less than table size, we do not resize as the costs is too high
-         */
-        return -1;
-    }
-
-    /* now we start to expand the hashtable */
-    rk_table_t *new_table = calloc(new_size, sizeof(rk_table_t));
-    if (!new_table) {
-        return -1;
-    }
-    rk_node_t *old_free = ht->free; // perserve old free address
-    /* note: the realloc will free old pointer if success */
-    ht->free = realloc(ht->free, sizeof(rk_node_t) * new_size);
-    if (!ht->free) {
-        ht->free = old_free; // request fail and restore
-        free(new_table);
-        return -1;
-    }
-
-    ht->mask = new_size - 1;
-    if (old_free != ht->free) {
-        /* Unluckily we need update the [next] member */
-        for (unsigned int i = 0; i < ht->table_size; i++) {
-            if (ht->free[i].next) {
-                ht->free[i].next = ht->free + RK_NODE_OFFSET(old_free, ht->free[i].next);
-            }
-        }
-    }
-
-    /* add new allocated nodes to free_nodes */
-    for (unsigned int i = ht->table_size; i < ht->mask; i++) {
-        ht->free[i].next = ht->free + i + 1;
-    }
-    ht->free[ht->mask].next = ht->free + RK_NODE_OFFSET(old_free, ht->free_nodes);
-    ht->free_nodes = ht->free + ht->table_size;
-    /* now we start to rehash */
-    for (unsigned int i = 0; i < ht->table_size; i++) {
-        rk_node_t *node = ht->free + RK_NODE_OFFSET(old_free, ht->table[i].next);
-        rk_node_t *next;
-        while (node) {
-            rk_table_t *table = new_table + (node->hash & ht->mask);
-            if (!table->prev) {
-                table->prev = node;
-            }
-            next = node->next;
-            node->next = table->next;
-            table->next = node;
-
-            node = next;
-        }
-    }
-    free(ht->table);
-    ht->table = new_table;
-    ht->table_size = new_size;
-    return 0;
-}
