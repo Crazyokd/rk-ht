@@ -255,7 +255,7 @@ int rk_ht_erase_s(rk_ht_t *ht, char *key, unsigned int key_len)
         if (t_t->key_len == key_len && !memcmp(t_t->key, key, key_len)) {
             /* last node of link */
             if (!t_t->next) {
-                if (prev_node == table) {
+                if (prev_node == (rk_node_t *)table) {
                     /* no any element now */
                     table->prev = NULL;
                 } else {
