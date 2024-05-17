@@ -253,10 +253,17 @@ static int rk_ht_expand(rk_ht_t *ht, unsigned int new_size)
     for (unsigned int i = ht->table_size; i < ht->mask; i++) {
         ht->free[i].next = ht->free + i + 1;
     }
-    ht->free[ht->mask].next = ht->free + RK_NODE_OFFSET(old_free, ht->free_nodes);
+    if (ht->free_nodes) {
+        ht->free[ht->mask].next = ht->free + RK_NODE_OFFSET(old_free, ht->free_nodes);
+    } else {
+        ht->free[ht->mask].next = NULL;
+    }
     ht->free_nodes = ht->free + ht->table_size;
     /* now we start to rehash */
     for (unsigned int i = 0; i < ht->table_size; i++) {
+        if (!ht->table[i].next) {
+            continue;
+        }
         rk_node_t *node = ht->free + RK_NODE_OFFSET(old_free, ht->table[i].next);
         rk_node_t *next;
         while (node) {
