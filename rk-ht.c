@@ -296,7 +296,8 @@ int rk_ht_insert_s(rk_ht_t *ht, char *key, unsigned int key_len, void *value)
     rk_node_t *t_t = table->next;
     while (t_t) {
         /* already exist */
-        if (t_t->data == value) return 0;
+        if (t_t->key_len == key_len && !memcmp(t_t->key, key, key_len))
+            return 0;
         t_t = t_t->next;
     }
 
@@ -421,4 +422,3 @@ inline void rk_ht_free_iter(rk_node_t **nodes)
     if (!nodes) return;
     free(nodes);
 }
-
